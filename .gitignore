@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+node_modules/
+tools/pretrain/dados/
+tools/pretrain/saida/
+.venv/
+.DS_Store

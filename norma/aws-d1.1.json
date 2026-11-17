@@ -1,0 +1,153 @@
+{
+  "id": "aws-d1.1",
+  "nome": "AWS D1.1 — Código de Soldagem Estrutural (Aço)",
+  "referencia": "Critérios de aceitação da inspeção visual (Tabela 8.1 na edição 2020; Tabela 6.1 em edições anteriores)",
+  "aviso": "Resumo em linguagem simples, feito para treinamento e apoio à inspeção. NÃO substitui a norma. Confira sempre com a edição vigente da AWS D1.1 adquirida pela empresa, com o desenho/especificação do projeto e com o inspetor de soldagem qualificado (CWI). Para editar estes textos, altere o arquivo norma/aws-d1.1.json.",
+  "parametros": {
+    "carregamento": {
+      "rotulo": "Tipo de carregamento da estrutura",
+      "opcoes": { "estatico": "Estático (não sujeito à fadiga)", "ciclico": "Cíclico (sujeito à fadiga)" },
+      "padrao": "estatico"
+    },
+    "espessura": {
+      "rotulo": "Espessura do material de base",
+      "opcoes": { "menor25": "Menor que 25 mm (1 pol)", "maior25": "25 mm (1 pol) ou mais" },
+      "padrao": "menor25"
+    },
+    "junta": {
+      "rotulo": "Tipo de solda",
+      "opcoes": {
+        "filete": "Solda de filete",
+        "chanfro": "Solda de chanfro (demais casos)",
+        "cjp_transversal": "Chanfro CJP de topo, transversal à tensão de tração"
+      },
+      "padrao": "filete"
+    }
+  },
+  "acoes": {
+    "aprovar": "APROVAR",
+    "reprovar": "REPROVAR",
+    "medir": "MEDIR",
+    "corrigir": "CORRIGIR",
+    "avaliar": "AVALIAR"
+  },
+  "criterios": {
+    "aceitavel": {
+      "nome": "Solda boa (aceitável)",
+      "acao": "aprovar",
+      "texto": "Nenhuma descontinuidade visível pela IA. A norma exige fusão completa, crateras preenchidas, perfil correto e ausência de trincas.",
+      "como": "Confirme o tamanho da solda com o calibre e faça a inspeção visual completa antes de liberar."
+    },
+    "trinca": {
+      "nome": "Trinca",
+      "acao": "reprovar",
+      "texto": "Tolerância zero: qualquer trinca é inaceitável, independentemente do tamanho ou da posição.",
+      "como": "Marque a região. Em caso de dúvida confirme com lupa ou líquido penetrante. Encaminhe para reparo (remover e ressoldar)."
+    },
+    "falta_fusao": {
+      "nome": "Falta de fusão",
+      "acao": "reprovar",
+      "texto": "Deve existir fusão completa entre camadas de solda e entre a solda e o metal de base. Falta de fusão visível é inaceitável.",
+      "como": "Verifique as bordas do cordão (pé da solda). Encaminhe para reparo."
+    },
+    "cratera": {
+      "nome": "Cratera não preenchida",
+      "acao": "reprovar",
+      "texto": "Todas as crateras devem ser preenchidas até o tamanho especificado da solda (exceto nas pontas de filetes intermitentes fora do comprimento efetivo).",
+      "como": "Verifique o fim do cordão. Preencher a cratera e reinspecionar (inclusive procurar trinca de cratera)."
+    },
+    "sobreposicao": {
+      "nome": "Sobreposição (overlap)",
+      "acao": "reprovar",
+      "texto": "Perfil com sobreposição (metal de solda “derramado” sobre o metal de base sem fundir) é inaceitável.",
+      "como": "Esmerilhar o excesso e verificar a fusão; reparar se necessário."
+    },
+    "porosidade": {
+      "nome": "Porosidade",
+      "acao": "medir",
+      "texto": "Porosidade visível tem limite: medir antes de decidir.",
+      "regras": [
+        {
+          "quando": { "junta": "cjp_transversal" },
+          "acao": "reprovar",
+          "texto": "Chanfro CJP de topo transversal à tração: NENHUMA porosidade tubular visível é aceita."
+        },
+        {
+          "quando": { "carregamento": "estatico" },
+          "texto": "Soma dos diâmetros dos poros visíveis de 1 mm (1/32 pol) ou mais: no máximo 10 mm (3/8 pol) em qualquer trecho de 25 mm (1 pol) de solda e no máximo 19 mm (3/4 pol) em qualquer trecho de 300 mm (12 pol)."
+        },
+        {
+          "quando": { "carregamento": "ciclico", "junta": "filete" },
+          "texto": "Filete em estrutura cíclica: no máximo 1 poro a cada 100 mm (4 pol) de solda e diâmetro máximo de 2,5 mm (3/32 pol). Exceção: filetes de enrijecedores na alma seguem o limite de 10 mm a cada 25 mm e 19 mm a cada 300 mm."
+        },
+        {
+          "quando": { "carregamento": "ciclico" },
+          "texto": "Chanfro em estrutura cíclica: no máximo 1 poro a cada 100 mm (4 pol) de solda e diâmetro máximo de 2,5 mm (3/32 pol)."
+        }
+      ],
+      "como": "Use régua/calibre: meça o diâmetro dos poros ≥ 1 mm e some num trecho de 25 mm e de 300 mm. Fora do limite → reprovar."
+    },
+    "mordedura": {
+      "nome": "Mordedura (undercut)",
+      "acao": "medir",
+      "texto": "Mordedura tem limite de profundidade: medir antes de decidir.",
+      "regras": [
+        {
+          "quando": { "carregamento": "ciclico" },
+          "texto": "Estrutura cíclica: em membros principais com solda transversal à tração, profundidade máxima de 0,25 mm (0,01 pol). Nos demais casos, máximo de 1 mm (1/32 pol)."
+        },
+        {
+          "quando": { "espessura": "menor25" },
+          "texto": "Material com menos de 25 mm: profundidade máxima de 1 mm (1/32 pol). Exceção: até 2 mm (1/16 pol) num comprimento acumulado de até 50 mm (2 pol) em cada 300 mm (12 pol)."
+        },
+        {
+          "quando": { "espessura": "maior25" },
+          "texto": "Material com 25 mm ou mais: profundidade máxima de 2 mm (1/16 pol) em qualquer comprimento de solda."
+        }
+      ],
+      "como": "Meça a profundidade com calibre de mordedura (ou calibre de solda tipo “ponte”). Fora do limite → reprovar e reparar."
+    },
+    "subdimensionada": {
+      "nome": "Filete subdimensionado",
+      "acao": "medir",
+      "texto": "O filete pode ficar abaixo do tamanho nominal (L) sem correção apenas até: L ≤ 5 mm (3/16 pol) → 2 mm (1/16 pol); L = 6 mm (1/4 pol) → 2,5 mm (3/32 pol); L ≥ 8 mm (5/16 pol) → 3 mm (1/8 pol). A parte subdimensionada não pode passar de 10% do comprimento da solda. Em vigas soldadas (alma-mesa), nada abaixo do nominal nas extremidades num comprimento igual a 2× a largura da mesa.",
+      "como": "Meça a perna do filete com o calibre de solda e compare com o desenho."
+    },
+    "perfil": {
+      "nome": "Perfil irregular (convexidade / reforço excessivo)",
+      "acao": "medir",
+      "texto": "Convexidade máxima do filete conforme a largura da face (W): W ≤ 8 mm (5/16 pol) → 2 mm (1/16 pol); 8 mm < W < 25 mm → 3 mm (1/8 pol); W ≥ 25 mm (1 pol) → 5 mm (3/16 pol). Reforço de solda de chanfro (topo): máximo 3 mm (1/8 pol). Concavidade não pode reduzir o tamanho efetivo da solda.",
+      "como": "Meça com calibre de solda. Excesso pode ser esmerilhado; falta exige complementação."
+    },
+    "escoria": {
+      "nome": "Escória não removida",
+      "acao": "corrigir",
+      "texto": "A escória deve ser removida de todas as soldas concluídas (e entre passes).",
+      "como": "Limpar com picadeira/escova e reinspecionar procurando inclusões e trincas."
+    },
+    "abertura_arco": {
+      "nome": "Abertura de arco fora da solda",
+      "acao": "corrigir",
+      "texto": "Aberturas de arco fora da área da solda devem ser evitadas. Marcas ou trincas causadas por elas devem ser esmerilhadas até um contorno suave e verificadas.",
+      "como": "Esmerilhar e confirmar ausência de trinca (líquido penetrante se necessário)."
+    },
+    "respingo": {
+      "nome": "Respingo",
+      "acao": "avaliar",
+      "texto": "Respingo não está entre os critérios de rejeição da tabela de inspeção visual da norma, mas costuma ser exigida a remoção pelo cliente, por pintura/galvanização ou antes de ensaios.",
+      "como": "Verifique a especificação do cliente/pintura. Remover quando exigido."
+    },
+    "outro": {
+      "nome": "Outro defeito",
+      "acao": "avaliar",
+      "texto": "Descontinuidade não mapeada nas regras do app.",
+      "como": "Avaliação do inspetor qualificado conforme a norma e o projeto."
+    }
+  },
+  "geral": [
+    "Quando inspecionar: a inspeção visual pode começar assim que a solda esfriar até a temperatura ambiente. Para aços ASTM A514, A517 e A709 grau HPS 100W, a aceitação deve ser feita no mínimo 48 h após a conclusão da solda.",
+    "Trinca, falta de fusão, cratera não preenchida e sobreposição: tolerância zero.",
+    "Porosidade, mordedura, tamanho e perfil da solda: aceitos dentro de limites dimensionais — a foto não mede, o inspetor mede com calibre.",
+    "A inspeção visual cobre somente a superfície. Defeitos internos exigem ensaios (UT, RT, MT, PT) quando o projeto pedir."
+  ]
+}

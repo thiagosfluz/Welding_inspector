@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Inspetor de Solda</title>
+  <meta name="description" content="Inspeção visual de solda com IA treinável e critérios da AWS D1.1.">
+  <meta name="theme-color" content="#0f1419">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Inspetor Solda">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="vendor/tf.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topo">
+    <div class="marca">
+      <img src="icons/icon.svg" alt="" width="28" height="28">
+      <span>Inspetor de Solda</span>
+    </div>
+    <div id="status-ia" class="status-ia" title="Estado da IA">Carregando IA…</div>
+  </header>
+
+  <div id="faixa-atualizacao" class="faixa" hidden>
+    Nova versão disponível.
+    <button id="btn-atualizar" class="btn btn-pequeno">Atualizar</button>
+  </div>
+
+  <main>
+    <!-- ===================== INSPECIONAR ===================== -->
+    <section id="aba-inspecionar" class="aba" data-aba="inspecionar">
+      <div class="visor-wrap">
+        <div class="visor" id="visor">
+          <canvas id="visor-canvas" width="480" height="480"></canvas>
+          <canvas id="visor-calor" width="480" height="480"></canvas>
+          <div class="guia"></div>
+          <div id="visor-msg" class="visor-msg">Toque em “Ligar câmera”</div>
+          <div class="visor-ctrl">
+            <button id="btn-lanterna" class="btn-icone" title="Lanterna" hidden aria-label="Lanterna">🔦</button>
+            <button id="btn-trocar-cam" class="btn-icone" title="Trocar câmera" aria-label="Trocar câmera">🔄</button>
+          </div>
+          <div id="visor-fps" class="visor-fps"></div>
+        </div>
+      </div>
+
+      <div id="resultado" class="resultado neutro" aria-live="polite">
+        <div class="resultado-titulo" id="res-titulo">—</div>
+        <div class="resultado-sub" id="res-sub">Aponte a câmera para a solda dentro do quadro</div>
+        <div class="conf-barra"><div id="res-conf-barra"></div></div>
+      </div>
+
+      <div id="norma-box" class="norma-box" hidden>
+        <div class="norma-topo">
+          <span id="norma-chip" class="chip">—</span>
+          <span class="norma-ref" id="norma-ref">AWS D1.1</span>
+        </div>
+        <div id="norma-texto" class="norma-texto"></div>
+        <div id="norma-como" class="norma-como"></div>
+      </div>
+
+      <div class="acoes">
+        <button id="btn-camera" class="btn btn-primario">📷 Ligar câmera</button>
+        <button id="btn-congelar" class="btn" disabled>⏸ Congelar</button>
+        <button id="btn-errado" class="btn" disabled>✋ Resultado errado?</button>
+        <label class="btn">🖼 Analisar foto
+          <input id="input-analisar" type="file" accept="image/*" hidden>
+        </label>
+      </div>
+
+      <div class="cartao">
+        <h3>Confiança por classe</h3>
+        <div id="barras-classes" class="barras"><p class="dica">Treine o modelo para ver as classes.</p></div>
+      </div>
+
+      <button id="btn-params-norma" class="params-norma" title="Alterar parâmetros da norma"></button>
+    </section>
+
+    <!-- ===================== TREINAR ===================== -->
+    <section id="aba-treinar" class="aba" data-aba="treinar" hidden>
+      <div class="cartao passos">
+        <div><b>1</b> Fotografe cada classe (mín. 20, ideal 50+ fotos)</div>
+        <div><b>2</b> Toque em <i>Treinar modelo</i></div>
+        <div><b>3</b> Confira a qualidade e teste em peças novas</div>
+      </div>
+      <div id="fila-status" class="fila-status" hidden></div>
+      <div id="lista-classes"></div>
+      <button id="btn-nova-classe" class="btn btn-largo">＋ Nova classe</button>
+
+      <div class="cartao">
+        <button id="btn-treinar" class="btn btn-primario btn-largo">🧠 Treinar modelo</button>
+        <div id="treino-aviso" class="dica"></div>
+        <div id="treino-progresso" class="progresso" hidden><div></div><span></span></div>
+      </div>
+      <div id="qualidade"></div>
+    </section>
+
+    <!-- ===================== MODELO ===================== -->
+    <section id="aba-modelo" class="aba" data-aba="modelo" hidden>
+      <div class="cartao">
+        <h3>Modelo atual</h3>
+        <div id="modelo-info"></div>
+      </div>
+
+      <div class="cartao">
+        <h3>Norma (AWS D1.1)</h3>
+        <p class="dica">Esses parâmetros definem qual limite da norma aparece na inspeção.</p>
+        <div id="norma-params" class="form"></div>
+        <button id="btn-guia-norma" class="btn">📘 Ver guia da norma</button>
+      </div>
+
+      <div class="cartao">
+        <h3>Inspeção</h3>
+        <div class="form">
+          <label>Limite de confiança: <b id="lbl-limite"></b>
+            <input id="cfg-limite" type="range" min="50" max="95" step="5">
+          </label>
+          <p class="dica">Abaixo deste valor o resultado fica <b>INCERTO</b> (chame o inspetor).</p>
+          <label class="linha"><input id="cfg-som" type="checkbox"> Bipe ao detectar defeito</label>
+          <label class="linha"><input id="cfg-vibrar" type="checkbox"> Vibrar ao detectar defeito</label>
+          <label class="linha"><input id="cfg-calor" type="checkbox"> Mostrar mapa de calor do defeito</label>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Base de conhecimento da IA</h3>
+        <div id="bases-lista" class="form"></div>
+      </div>
+
+      <div class="cartao">
+        <h3>Compartilhar e backup</h3>
+        <p class="dica">O arquivo leva fotos, classes e modelo. Use para passar o treino para outro celular/PC ou para guardar um backup.</p>
+        <div class="acoes">
+          <button id="btn-exportar" class="btn btn-primario">⬆ Exportar</button>
+          <label class="btn">⬇ Importar
+            <input id="input-importar" type="file" accept=".json,application/json" hidden>
+          </label>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Instalar o aplicativo</h3>
+        <div id="instalar-info"></div>
+      </div>
+
+      <div class="cartao perigo">
+        <h3>Zona de perigo</h3>
+        <button id="btn-apagar-tudo" class="btn btn-perigo">Apagar todas as fotos e o modelo</button>
+      </div>
+      <p class="rodape" id="versao"></p>
+    </section>
+  </main>
+
+  <nav class="abas">
+    <button data-ir="inspecionar" class="ativa"><span>🔍</span>Inspecionar</button>
+    <button data-ir="treinar"><span>🧠</span>Treinar<i id="badge-treinar" class="badge" hidden>!</i></button>
+    <button data-ir="modelo"><span>⚙️</span>Modelo</button>
+  </nav>
+
+  <div id="toast" class="toast" hidden></div>
+  <dialog id="modal"><div id="modal-corpo"></div></dialog>
+  <video id="video" playsinline muted autoplay></video>
+</body>
+</html>

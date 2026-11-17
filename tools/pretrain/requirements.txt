@@ -1,0 +1,5 @@
+tensorflow>=2.15
+numpy
+pillow
+pyyaml
+roboflow  # opcional: baixar o dataset direto do Roboflow com sua chave de API

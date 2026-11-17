@@ -1,0 +1,18 @@
+{
+  "bases": [
+    {
+      "id": "geral-mobilenet-v1",
+      "nome": "Geral — MobileNet (ImageNet)",
+      "descricao": "Rede pré-treinada em 1,2 milhão de fotos de uso geral. Funciona bem com as fotos do quadro do kaizen. Já vem com o app.",
+      "url": "models/base-geral/model.json",
+      "entrada": 224
+    },
+    {
+      "id": "solda-mobilenet-v1",
+      "nome": "Solda — MobileNet ajustada com fotos públicas de solda",
+      "descricao": "Mesma rede, ajustada antes com milhares de fotos públicas de defeitos de solda (trinca, porosidade, respingo…). Gerada pelo script tools/pretrain (Etapa 2).",
+      "url": "models/base-solda/model.json",
+      "entrada": 224
+    }
+  ]
+}

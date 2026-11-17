@@ -1,0 +1,9 @@
+{
+  "name": "inspetor-solda-ferramentas",
+  "private": true,
+  "type": "module",
+  "description": "Ferramentas de manutenção: gerar a base geral e verificar a base de solda.",
+  "dependencies": {
+    "@tensorflow/tfjs": "4.22.0"
+  }
+}

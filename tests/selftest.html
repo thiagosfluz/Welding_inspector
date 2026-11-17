@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Autoteste</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; background: #0f1419; color: #e8edf2; padding: 16px; max-width: 900px; margin: auto; }
+    li.ok::marker { content: "✅ "; } li.falha::marker { content: "❌ "; } li.info::marker { content: "ℹ️ "; }
+    #amostras canvas { width: 80px; height: 80px; margin: 2px; border-radius: 6px; }
+    #final { font-size: 1.4rem; font-weight: 800; }
+  </style>
+  <script src="../vendor/tf.min.js" defer></script>
+  <script type="module" src="selftest.js"></script>
+</head>
+<body>
+  <h1>Autoteste do Inspetor de Solda</h1>
+  <p>Gera imagens sintéticas de solda (boa, porosidade, trinca), treina a IA, valida, testa a norma e o exportar/importar. Não mexe nos seus dados (usa um banco separado).</p>
+  <div id="final">Rodando…</div>
+  <ul id="log"></ul>
+  <div id="amostras"></div>
+</body>
+</html>
