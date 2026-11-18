@@ -16,6 +16,40 @@ As fotos e o modelo ficam **somente no aparelho**: nada é enviado para servidor
 
 ---
 
+## Summary in English (for presentations)
+
+**Weld Inspector** is an AI-assisted visual weld inspection app for phones and PCs.
+Point the camera at a weld and it instantly says **GOOD**, **BAD** (with the defect type) or **UNCERTAIN**,
+together with what the **AWS D1.1** code requires for that defect.
+
+### How it works
+
+1. **Capture:** the inspector points the phone or webcam at the weld; the app analyzes the live image several times per second.
+2. **See:** a pre-trained neural network (MobileNet) turns the image into visual features such as edges, textures, pores and cracks.
+3. **Recognize:** a small classifier, trained inside the app with photos of the plant's own parts (the kaizen "right × wrong" board),
+   identifies the class: good weld, porosity, crack, undercut, lack of fusion…
+4. **Decide:** a rules layer based on the **AWS D1.1** visual acceptance criteria turns that class into an action:
+   **ACCEPT**, **REJECT**, **MEASURE** (with the code limit) or **REPAIR**.
+5. **Show:** the result appears on screen with the AI confidence and a **heat map** marking the suspicious area,
+   plus a beep and vibration when a defect is found.
+
+Training takes seconds on the device, needs only 20–50 photos per class and no programming.
+Each photo is augmented five ways (mirrored, rotated, darkened), and cross-validation reports the expected accuracy on new parts.
+
+### Why it helps inspectors
+
+- **Instant second opinion** at the workstation, so fewer surface defects slip through.
+- **The code at the point of inspection:** shows the AWS D1.1 criterion and how to check it, with no need to look it up.
+- **Consistent decisions** across inspectors and shifts: one trained model is exported and shared with every device.
+- **Says "UNCERTAIN" instead of guessing** when confidence is low, so the inspector knows when to look closer.
+- **Continuous improvement:** the "Wrong result?" button saves the photo in the correct class and the model is retrained.
+- **Practical on the shop floor:** installs like an app, works offline, and photos never leave the device.
+
+> **Support tool, not a final decision.** It only sees the surface and does not measure dimensions;
+> acceptance remains with the qualified welding inspector.
+
+---
+
 ## Sumário
 
 1. [Amanhã: passo a passo para colocar em uso](#amanhã-passo-a-passo-para-colocar-em-uso)
