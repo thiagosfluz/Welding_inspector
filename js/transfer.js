@@ -32,10 +32,10 @@ export async function exportar(app, aoProgresso = () => {}) {
   return new File([JSON.stringify(dados)], nome, { type: 'application/json' });
 }
 
-export async function compartilharOuBaixar(arquivo) {
+export async function compartilharOuBaixar(arquivo, titulo = 'Inspetor de Solda — treino') {
   try {
     if (navigator.canShare?.({ files: [arquivo] })) {
-      await navigator.share({ files: [arquivo], title: 'Inspetor de Solda — treino' });
+      await navigator.share({ files: [arquivo], title: titulo });
       return 'compartilhado';
     }
   } catch (e) {

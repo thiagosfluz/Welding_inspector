@@ -63,3 +63,72 @@ export function soldaSintetica(tipo, semente) {
   g.restore();
   return c;
 }
+
+/**
+ * Cordão de solda horizontal com poros de diâmetro CONHECIDO, para testar a medição em mm.
+ * poros: [{ posMm, diamMm, desvioMm }] (posição ao longo do cordão a partir de p1).
+ * Retorna { canvas, p1, p2, larguraMm, pxPorMm, regua: [a, b] (pontos 0 e 10 mm da régua) }.
+ */
+export function soldaComPoros({ pxPorMm = 12, comprimentoMm = 80, poros = [], semente = 1, regua = true } = {}) {
+  const r = rnd(semente * 104729 + 7);
+  const margem = 10;
+  const W = Math.round((comprimentoMm + 2 * margem) * pxPorMm);
+  const H = Math.round(44 * pxPorMm);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const tom = 105 + r() * 30;
+  g.fillStyle = `rgb(${tom},${tom + 4},${tom + 10})`;
+  g.fillRect(0, 0, W, H);
+  for (let i = 0; i < (W * H) / 60; i++) {
+    const v = tom + (r() - 0.5) * 50;
+    g.fillStyle = `rgba(${v},${v},${v},0.3)`;
+    g.fillRect(r() * W, r() * H, 1 + r() * 3, 1 + r() * 2);
+  }
+  const yc = Math.round(28 * pxPorMm);
+  const larguraCordao = 12 * pxPorMm;
+  const grad = g.createLinearGradient(0, yc - larguraCordao / 2, 0, yc + larguraCordao / 2);
+  grad.addColorStop(0, '#6b5a48'); grad.addColorStop(0.5, '#c9a27a'); grad.addColorStop(1, '#5a4a3c');
+  g.fillStyle = grad;
+  g.fillRect(0, yc - larguraCordao / 2, W, larguraCordao);
+  // escamas do cordão (arcos finos, como as ondulações reais)
+  g.strokeStyle = 'rgba(70,48,30,0.5)';
+  g.lineWidth = Math.max(1, pxPorMm * 0.12);
+  for (let x = 0; x < W; x += pxPorMm * (1.1 + r() * 0.3)) {
+    g.beginPath();
+    g.ellipse(x, yc, pxPorMm * 1.2, larguraCordao / 2 - 2, 0, -Math.PI / 2, Math.PI / 2);
+    g.stroke();
+  }
+  const x0 = margem * pxPorMm;
+  for (const p of poros) {
+    const x = x0 + p.posMm * pxPorMm;
+    const y = yc + (p.desvioMm || 0) * pxPorMm;
+    const raio = (p.diamMm * pxPorMm) / 2;
+    g.fillStyle = p.cor || '#140d08';
+    g.beginPath(); g.arc(x, y, raio, 0, Math.PI * 2); g.fill();
+    if (p.cor) continue;
+    g.fillStyle = 'rgba(255,240,220,0.45)';
+    g.beginPath(); g.arc(x - raio * 0.35, y - raio * 0.35, raio * 0.25, 0, Math.PI * 2); g.fill();
+  }
+  let pontosRegua = null;
+  if (regua) {
+    const yr = 4 * pxPorMm, hr = 9 * pxPorMm;
+    g.fillStyle = '#e8e4d8';
+    g.fillRect(x0 - 3 * pxPorMm, yr, (comprimentoMm + 6) * pxPorMm, hr);
+    g.fillStyle = '#111';
+    for (let m = 0; m <= comprimentoMm; m++) {
+      const x = x0 + m * pxPorMm;
+      const alt = m % 10 === 0 ? 0.6 : m % 5 === 0 ? 0.45 : 0.3;
+      g.fillRect(x - Math.max(0.5, pxPorMm * 0.05), yr, Math.max(1, pxPorMm * 0.1), hr * alt);
+    }
+    pontosRegua = [{ x: x0, y: yr + 1 }, { x: x0 + 10 * pxPorMm, y: yr + 1 }];
+  }
+  return {
+    canvas: c,
+    p1: { x: x0, y: yc },
+    p2: { x: x0 + comprimentoMm * pxPorMm, y: yc },
+    larguraMm: 10,
+    pxPorMm,
+    regua: pontosRegua,
+  };
+}

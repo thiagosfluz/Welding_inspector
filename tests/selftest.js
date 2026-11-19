@@ -5,7 +5,8 @@ import { Motor, treinarComValidacao, VARIANTES } from '../js/model.js';
 import { Norma, decidir } from '../js/norma.js';
 import { canvasParaBlob, blobParaCanvas } from '../js/imaging.js';
 import { exportar, lerArquivo, importar } from '../js/transfer.js';
-import { soldaSintetica } from './sintetico.js';
+import { soldaSintetica, soldaComPoros } from './sintetico.js';
+import { medirFoto, avaliarPorosidade, piorJanela } from '../js/poros.js';
 
 const log = document.getElementById('log');
 const itens = [];
@@ -114,6 +115,9 @@ async function main() {
     ok(decidir([0.9, 0.05, 0.05], cl, norma, 0.7).tipo === 'boa', 'Decisão: 90% boa → BOA');
     ok(decidir([0.5, 0.3, 0.2], cl, norma, 0.7).tipo === 'incerto', 'Decisão: 50% boa / 50% defeito → INCERTO');
 
+    // ---- medição de poros (aba Medir) ----
+    testarMedicaoPoros(norma, p);
+
     // ---- exportar / importar ----
     const fakeApp = {
       modelo, config: { limite: 0.7, som: true, vibrar: true, calor: true, norma: p },
@@ -144,6 +148,56 @@ async function main() {
     for (const n of nomesBanco) indexedDB.deleteDatabase(n);
     window.resultadoTeste = { ok: itens.every((i) => i.tipo !== 'falha'), itens };
   }
+}
+
+function testarMedicaoPoros(norma, p) {
+  const vitrine = document.getElementById('amostras');
+  const esperados = [
+    { posMm: 8, diamMm: 1.5, desvioMm: 1 },
+    { posMm: 24, diamMm: 2.0, desvioMm: -1.5 },
+    { posMm: 41, diamMm: 1.2, desvioMm: 0 },
+    { posMm: 60, diamMm: 2.5, desvioMm: 2 },
+    { posMm: 72, diamMm: 0.8, desvioMm: -1 },
+  ];
+  const medir = (s) => medirFoto(s.canvas, s.p1, s.p2, s.larguraMm * s.pxPorMm, s.pxPorMm);
+  let primeira = null;
+  for (const [i, ppm] of [12, 8, 30].entries()) {
+    const s = soldaComPoros({ pxPorMm: ppm, poros: esperados, semente: 3 + i });
+    if (i === 0) { s.canvas.style.width = '100%'; s.canvas.style.height = 'auto'; vitrine.append(s.canvas); }
+    const t = performance.now();
+    const m = medir(s);
+    if (i === 0) primeira = m;
+    const tempo = performance.now() - t;
+    ok(m.poros.length === esperados.length, `Poros a ${ppm} px/mm: encontrou ${m.poros.length} de ${esperados.length} (${tempo.toFixed(0)} ms)`);
+    let pior = 0, txt = [];
+    for (const e of esperados) {
+      const d = m.poros.reduce((melhor, q) => (Math.abs(q.posMm - e.posMm) < Math.abs(melhor.posMm - e.posMm) ? q : melhor), { posMm: Infinity, diamMm: 0 });
+      const tol = Math.max(0.15 * e.diamMm, 1.5 / ppm);
+      pior = Math.max(pior, Math.abs(d.diamMm - e.diamMm) / tol);
+      txt.push(`${e.diamMm}→${d.diamMm.toFixed(2)}`);
+    }
+    ok(pior <= 1, `Diâmetros a ${ppm} px/mm dentro da tolerância (±15%): ${txt.join(', ')} mm`);
+  }
+  const limpo = medir(soldaComPoros({ pxPorMm: 12, poros: [], semente: 9 }));
+  ok(limpo.poros.length === 0, `Cordão sem poros: ${limpo.poros.length} falso(s) poro(s)`);
+
+  const lim = norma.criterio('porosidade').medicao;
+  ok(lim?.estatico?.somaMaxMm === 10 && lim?.ciclico?.diametroMaxMm === 2.5, 'Norma traz os limites numéricos da medição de poros');
+  const av = avaliarPorosidade(primeira.poros, primeira.comprimentoMm, p, lim);
+  ok(av.dentro && av.contados.length === 4, `Estático: poros espaçados → DENTRO (${av.contados.length} poros ≥ 1 mm contam; o de 0,8 mm não)`);
+  const grupo = medir(soldaComPoros({ pxPorMm: 12, semente: 21,
+    poros: [30, 34, 38, 42, 46].map((x, j) => ({ posMm: x, diamMm: 2.5, desvioMm: j % 2 ? 1.5 : -1.5 })) }));
+  const avg = avaliarPorosidade(grupo.poros, grupo.comprimentoMm, p, lim);
+  ok(!avg.dentro, `Estático: 5 poros de 2,5 mm em 16 mm → FORA (${avg.itens[0].valor} em 25 mm)`);
+  grupo.poros.slice(0, 2).forEach((q) => { q.ignorado = true; });
+  ok(avaliarPorosidade(grupo.poros, grupo.comprimentoMm, p, lim).dentro, 'Poros ignorados à mão saem da soma (3 × 2,5 mm → DENTRO)');
+  ok(!avaliarPorosidade(primeira.poros, primeira.comprimentoMm, { ...p, carregamento: 'ciclico' }, lim).dentro, 'Cíclico: mais de 1 poro em 100 mm → FORA');
+  ok(avaliarPorosidade([{ posMm: 10, diamMm: 2 }], 80, { ...p, carregamento: 'ciclico' }, lim).dentro, 'Cíclico: 1 poro de 2 mm → DENTRO');
+  ok(!avaliarPorosidade([{ posMm: 10, diamMm: 3 }], 80, { ...p, carregamento: 'ciclico' }, lim).dentro, 'Cíclico: poro de 3 mm (> 2,5 mm) → FORA');
+  ok(!avaliarPorosidade([{ posMm: 10, diamMm: 1 }], 80, { ...p, junta: 'cjp_transversal' }, lim).dentro, 'CJP transversal: qualquer poro → FORA');
+  ok(avaliarPorosidade([], 80, p, lim).dentro, 'Sem poros → DENTRO');
+  const pj = piorJanela([{ posMm: 0, diamMm: 4 }, { posMm: 20, diamMm: 4 }, { posMm: 30, diamMm: 4 }, { posMm: 60, diamMm: 1 }], 25);
+  ok(Math.abs(pj.soma - 8) < 1e-9, `Janela deslizante de 25 mm: pior soma ${pj.soma} mm (esperado 8)`);
 }
 
 main();

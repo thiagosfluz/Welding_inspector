@@ -99,6 +99,38 @@
       <div id="qualidade"></div>
     </section>
 
+    <!-- ===================== MEDIR ===================== -->
+    <section id="aba-medir" class="aba" data-aba="medir" hidden>
+      <div id="medir-passos" class="medir-passos"></div>
+
+      <div id="medir-inicio" class="cartao">
+        <h3>📏 Medir poros pela foto</h3>
+        <p>Conta os poros do cordão e mede o diâmetro de cada um em milímetros, comparando com o limite da AWS D1.1.</p>
+        <ol class="medir-dicas">
+          <li>Encoste uma <b>régua</b> (ou escala em mm) ao lado do cordão, <b>no mesmo plano</b> da solda.</li>
+          <li>Fotografe <b>de frente</b> (câmera paralela à peça), de perto, com boa luz e sem reflexo forte.</li>
+          <li>Na foto, marque duas marcas da régua e depois o início e o fim do trecho do cordão.</li>
+        </ol>
+        <div class="acoes">
+          <label class="btn btn-primario">📷 Tirar foto
+            <input id="medir-input-camera" type="file" accept="image/*" capture="environment" hidden>
+          </label>
+          <label class="btn">🖼 Da galeria
+            <input id="medir-input-galeria" type="file" accept="image/*" hidden>
+          </label>
+        </div>
+        <p class="dica">Esta medição é separada da IA: não altera fotos, classes nem o modelo, e nada fica salvo no app.</p>
+      </div>
+
+      <div id="medir-area" hidden>
+        <div id="medir-instrucao" class="medir-instrucao"></div>
+        <div class="medir-visor"><canvas id="medir-canvas" width="10" height="10"></canvas></div>
+        <div id="medir-controles"></div>
+      </div>
+
+      <button id="btn-params-medir" class="params-norma" title="Alterar parâmetros da norma"></button>
+    </section>
+
     <!-- ===================== MODELO ===================== -->
     <section id="aba-modelo" class="aba" data-aba="modelo" hidden>
       <div class="cartao">
@@ -158,6 +190,7 @@
   <nav class="abas">
     <button data-ir="inspecionar" class="ativa"><span>🔍</span>Inspecionar</button>
     <button data-ir="treinar"><span>🧠</span>Treinar<i id="badge-treinar" class="badge" hidden>!</i></button>
+    <button data-ir="medir"><span>📏</span>Medir</button>
     <button data-ir="modelo"><span>⚙️</span>Modelo</button>
   </nav>
 

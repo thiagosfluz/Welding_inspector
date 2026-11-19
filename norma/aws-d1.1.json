@@ -85,7 +85,13 @@
           "texto": "Chanfro em estrutura cíclica: no máximo 1 poro a cada 100 mm (4 pol) de solda e diâmetro máximo de 2,5 mm (3/32 pol)."
         }
       ],
-      "como": "Use régua/calibre: meça o diâmetro dos poros ≥ 1 mm e some num trecho de 25 mm e de 300 mm. Fora do limite → reprovar."
+      "como": "Use régua/calibre: meça o diâmetro dos poros ≥ 1 mm e some num trecho de 25 mm e de 300 mm. Fora do limite → reprovar.",
+      "medicao": {
+        "_comentario": "Limites numéricos usados pela aba Medir (contagem de poros pela foto). Confira com a edição vigente da AWS D1.1.",
+        "cjp_transversal": { "contarAPartirDeMm": 0, "porosMax": 0 },
+        "estatico": { "contarAPartirDeMm": 1, "trechoMm": 25, "somaMaxMm": 10, "trechoLongoMm": 300, "somaMaxLongoMm": 19 },
+        "ciclico": { "contarAPartirDeMm": 0, "diametroMaxMm": 2.5, "trechoMm": 100, "porosMaxPorTrecho": 1 }
+      }
     },
     "mordedura": {
       "nome": "Mordedura (undercut)",

@@ -224,7 +224,7 @@ table.matriz { border-collapse: collapse; width: 100%; font-size: .82rem; margin
 /* ---------- navegação ---------- */
 .abas {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
   background: #0b0f13; border-top: 1px solid var(--borda);
 }
@@ -267,6 +267,35 @@ dialog.tela-cheia #modal-corpo { height: 100%; display: flex; flex-direction: co
 .captura-barra { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .flash { animation: flash .25s; }
 @keyframes flash { from { filter: brightness(2.2); } to { filter: none; } }
+
+/* ---------- medir poros ---------- */
+.medir-passos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 10px; }
+.medir-passos div {
+  text-align: center; font-size: .78rem; color: var(--texto2); padding: 6px 2px;
+  border-radius: 10px; background: var(--painel); border: 1px solid var(--borda); white-space: nowrap;
+}
+.medir-passos div.feito { color: #86efac; }
+.medir-passos div.atual { background: var(--primario); color: var(--primario-txt); border-color: transparent; font-weight: 700; }
+.medir-dicas { padding-left: 20px; margin: 8px 0; }
+.medir-dicas li { margin: 4px 0; }
+.medir-instrucao { background: var(--painel2); border-radius: 10px; padding: 8px 12px; font-size: .92rem; margin-bottom: 8px; }
+.medir-visor { display: flex; justify-content: center; }
+#medir-canvas { display: block; max-width: 100%; border-radius: 10px; background: #000; touch-action: none; cursor: crosshair; }
+.medir-leitura { font-weight: 700; font-variant-numeric: tabular-nums; }
+.medir-aviso { color: #fde68a; font-size: .88rem; }
+.medir-aviso:empty { display: none; }
+.medir-regras { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; font-size: .92rem; }
+.medir-regras li { display: flex; gap: 8px; }
+.medir-regras .ok { color: #4ade80; font-weight: 800; }
+.medir-regras .nok { color: #f87171; font-weight: 800; }
+.form input[type=number] {
+  min-height: 44px; padding: 8px 10px; border-radius: 10px; background: var(--painel2);
+  border: 1px solid var(--borda); max-width: 10em;
+}
+table.poros { width: 100%; border-collapse: collapse; font-size: .86rem; font-variant-numeric: tabular-nums; }
+.poros th, .poros td { padding: 6px; border-bottom: 1px solid var(--borda); text-align: left; }
+.poros th { color: var(--texto2); font-weight: 600; }
+.poros tr.ignorado td { color: var(--texto2); text-decoration: line-through; }
 
 .guia-norma h4 { margin: 14px 0 4px; }
 .guia-norma p { margin: 4px 0; font-size: .92rem; }

@@ -8,8 +8,9 @@ import { $, toast, iniciarModal, CORES } from './ui.js';
 import * as abaInspecionar from './tab-inspecionar.js';
 import * as abaTreinar from './tab-treinar.js';
 import * as abaModelo from './tab-modelo.js';
+import * as abaMedir from './tab-medir.js';
 
-export const VERSAO_APP = '1.0.0';
+export const VERSAO_APP = '1.1.0';
 
 const CONFIG_PADRAO = {
   limite: 0.7,
@@ -147,7 +148,7 @@ export const app = {
   },
 };
 
-const modulos = { inspecionar: abaInspecionar, treinar: abaTreinar, modelo: abaModelo };
+const modulos = { inspecionar: abaInspecionar, treinar: abaTreinar, medir: abaMedir, modelo: abaModelo };
 
 export function definirStatus(texto, tipo = '') {
   const s = $('#status-ia');
@@ -239,6 +240,7 @@ async function iniciar() {
     abaInspecionar.iniciar(app);
     abaTreinar.iniciar(app);
     abaModelo.iniciar(app);
+    abaMedir.iniciar(app);
     app.emitir('dados');
 
     store.pedirArmazenamentoPersistente();

@@ -8,6 +8,8 @@ O inspetor abre a câmera, aponta para a solda e o app mostra na hora:
 - o que a **norma AWS D1.1** pede para aquele defeito (REPROVAR, MEDIR com o limite, CORRIGIR…);
 - um **mapa de calor** indicando a região suspeita, com bipe e vibração ao detectar defeito.
 
+Na aba **📏 Medir**, uma foto com uma **régua ao lado da solda** conta os poros, mede cada um em **mm** e compara com o limite de porosidade da AWS D1.1.
+
 O treino é feito **no próprio app**, com as fotos do quadro "certo × errado", sem programar nada.
 Funciona no **PC e no celular**, pode ser **instalado como aplicativo** e funciona **sem internet**.
 As fotos e o modelo ficam **somente no aparelho**: nada é enviado para servidores.
@@ -32,6 +34,8 @@ together with what the **AWS D1.1** code requires for that defect.
    **ACCEPT**, **REJECT**, **MEASURE** (with the code limit) or **REPAIR**.
 5. **Show:** the result appears on screen with the AI confidence and a **heat map** marking the suspicious area,
    plus a beep and vibration when a defect is found.
+6. **Measure porosity:** in the **📏 Measure** tab, a photo with a ruler next to the weld lets the app count the pores,
+   measure each diameter in mm and check the AWS D1.1 porosity limits (e.g. sum of diameters per 25 mm of weld).
 
 Training takes seconds on the device, needs only 20–50 photos per class and no programming.
 Each photo is augmented five ways (mirrored, rotated, darkened), and cross-validation reports the expected accuracy on new parts.
@@ -42,10 +46,11 @@ Each photo is augmented five ways (mirrored, rotated, darkened), and cross-valid
 - **The code at the point of inspection:** shows the AWS D1.1 criterion and how to check it, with no need to look it up.
 - **Consistent decisions** across inspectors and shifts: one trained model is exported and shared with every device.
 - **Says "UNCERTAIN" instead of guessing** when confidence is low, so the inspector knows when to look closer.
+- **Pore measurement in seconds:** counts pores and sums their diameters per 25 mm, instead of measuring each one by hand.
 - **Continuous improvement:** the "Wrong result?" button saves the photo in the correct class and the model is retrained.
 - **Practical on the shop floor:** installs like an app, works offline, and photos never leave the device.
 
-> **Support tool, not a final decision.** It only sees the surface and does not measure dimensions;
+> **Support tool, not a final decision.** It only sees the surface, and photo measurements are indicative;
 > acceptance remains with the qualified welding inspector.
 
 ---
@@ -57,12 +62,13 @@ Each photo is augmented five ways (mirrored, rotated, darkened), and cross-valid
 3. [Norma AWS D1.1 dentro do app](#norma-aws-d11-dentro-do-app)
 4. [Processo de treinamento (detalhado)](#processo-de-treinamento-detalhado)
 5. [Usando na inspeção](#usando-na-inspeção)
-6. [Manutenção do modelo](#manutenção-do-modelo)
-7. [Etapa 2 — base de solda (opcional)](#etapa-2--base-de-solda-opcional)
-8. [Instalar no celular e no PC](#instalar-no-celular-e-no-pc)
-9. [Limitações e segurança](#limitações-e-segurança)
-10. [Problemas comuns](#problemas-comuns)
-11. [Para desenvolvedores](#para-desenvolvedores)
+6. [Medir poros (aba 📏 Medir)](#medir-poros-aba--medir)
+7. [Manutenção do modelo](#manutenção-do-modelo)
+8. [Etapa 2 — base de solda (opcional)](#etapa-2--base-de-solda-opcional)
+9. [Instalar no celular e no PC](#instalar-no-celular-e-no-pc)
+10. [Limitações e segurança](#limitações-e-segurança)
+11. [Problemas comuns](#problemas-comuns)
+12. [Para desenvolvedores](#para-desenvolvedores)
 
 ---
 
@@ -278,6 +284,55 @@ Na aba **⚙️ Modelo → Inspeção**:
 4. **⏸ Congelar** fixa a imagem para analisar com calma. **🖼 Analisar foto** analisa uma foto da galeria.
 5. **✋ Resultado errado?** salva a imagem na classe correta. É a melhoria contínua do modelo; treine de novo no fim do dia.
 6. A faixa no rodapé (ex.: *Norma: Estático · Menor que 25 mm · Solda de filete*) mostra os parâmetros da norma em uso. Toque nela para mudar.
+7. Deu **porosidade**? Use a aba **📏 Medir** para contar e medir os poros (veja a próxima seção).
+
+---
+
+## Medir poros (aba 📏 Medir)
+
+A AWS D1.1 aceita porosidade **dentro de limites dimensionais**. A aba **📏 Medir** faz essa conta pela foto:
+conta os poros, mede o diâmetro de cada um em **mm** e compara com o limite da norma.
+Ela é **separada da IA**: não usa o modelo, não altera fotos, classes nem treino, e nada fica salvo no app.
+
+**Como fotografar:**
+- Encoste uma **régua** (ou escala em mm) **ao lado do cordão, no mesmo plano** da solda.
+- Fotografe **de frente**, com a câmera paralela à peça. Foto inclinada distorce a medida.
+- Chegue **perto** (o app avisa se a escala ficar abaixo de 8 px por mm), com boa luz e sem reflexo forte.
+
+**Passos no app:**
+1. **📷 Tirar foto** (abre a câmera do celular em resolução máxima) ou **🖼 Da galeria**.
+2. **Escala:** toque em **duas marcas da régua** (ex.: 0 e 10 mm) e digite a distância real entre elas.
+   Arraste os pontos para acertar; uma **lupa** mostra a marca ampliada.
+3. **Cordão:** toque no **início** e no **fim** do trecho a medir e ajuste a **largura da faixa** para cobrir só o cordão.
+4. **Resultado:** os poros aparecem circulados e numerados, com:
+   - quantidade, **diâmetro de cada poro**, maior poro e **soma dos diâmetros**;
+   - **✔ DENTRO DO LIMITE** ou **✖ FORA DO LIMITE**, conforme os parâmetros da norma escolhidos em **⚙️ Modelo → Norma**;
+   - o pior trecho de 25 mm destacado na foto.
+
+**Regras usadas** (editáveis em `norma/aws-d1.1.json`, chave `medicao` da porosidade):
+
+| Situação | Critério verificado |
+|---|---|
+| Estrutura estática | Soma dos diâmetros dos poros **≥ 1 mm**: até **10 mm em qualquer trecho de 25 mm** e até **19 mm em 300 mm** |
+| Estrutura cíclica | No máximo **1 poro a cada 100 mm** e diâmetro máximo de **2,5 mm** |
+| Chanfro CJP transversal à tração | **Nenhum** poro visível |
+
+Se o trecho fotografado for menor que 300 mm (ou 100 mm no cíclico), o app avisa para somar com o restante do cordão.
+
+**Corrigir a detecção:**
+- **Toque num poro** para ignorá-lo (ex.: sujeira, respingo) ou reativá-lo.
+- **Toque num poro que ficou de fora** para o app procurá-lo naquele ponto e adicioná-lo.
+  Se ele não achar, **toque no centro do poro e arraste até a borda** para marcar à mão.
+- **Sensibilidade:** aumente se faltarem poros; diminua se aparecerem falsos poros (escamas, riscos).
+- **💾 Salvar imagem** gera um JPEG com os poros marcados e o resultado, para anexar ao relatório ou enviar.
+
+**Como o app encontra os poros:** processamento de imagem, sem IA. Poros são manchas **escuras e arredondadas**,
+menores que o fundo à volta. O app compara cada ponto com o fundo estimado na horizontal e na vertical,
+separa as manchas, descarta as alongadas (escamas, bordas, riscos) e mede a **maior dimensão** de cada poro
+onde o contraste cai pela metade. A escala vem da régua.
+
+> ⚠️ A medição pela foto é **indicativa**: vê só poros na superfície e depende da régua no mesmo plano e da foto de frente.
+> Confirme com calibre antes de reprovar ou liberar.
 
 ---
 
@@ -366,7 +421,7 @@ Quando houver versão nova publicada, aparece a faixa azul **"Nova versão dispo
 
 - **Apoio, não decisão final.** A liberação da solda é responsabilidade do inspetor qualificado, conforme a AWS D1.1 e o projeto.
 - **Só superfície.** A câmera não vê defeitos internos (falta de penetração, inclusões, porosidade interna). Use os ensaios (UT, RT, MT, PT) quando o projeto pedir.
-- **Não mede.** Limites dimensionais (poros, mordedura, perna do filete, convexidade) precisam de calibre.
+- **Não mede (na inspeção ao vivo).** Limites dimensionais (mordedura, perna do filete, convexidade) precisam de calibre. A aba 📏 Medir estima o tamanho dos poros pela foto com régua, mas o resultado é indicativo.
 - **Depende do treino.** O modelo só conhece o que viu. Peças, materiais, processos ou iluminação muito diferentes do quadro reduzem o acerto; treine com exemplos novos.
 - **Resumo da norma.** O arquivo `norma/aws-d1.1.json` é um resumo parafraseado e precisa ser conferido com a edição vigente da norma.
 - **Privacidade.** Fotos e modelo ficam no aparelho (IndexedDB do navegador). Só saem dele quando você **exporta** o arquivo.
@@ -387,6 +442,9 @@ Quando houver versão nova publicada, aparece a faixa azul **"Nova versão dispo
 | Treino lento | Normal na primeira vez com muitas fotos (o app processa cada foto uma vez). Mantenha a tela ligada. |
 | Atualizei o site mas o celular mostra a versão antiga | Toque na faixa **Atualizar**, ou feche e abra o app. |
 | "Treinado com outra base — treine de novo" | A base foi trocada. Toque em Treinar modelo. |
+| Medir: aparecem poros falsos ou faltam poros | Diminua/aumente a **sensibilidade**; toque nos falsos para ignorar e nos que faltaram para adicionar. Estreite a faixa para cobrir só o cordão. |
+| Medir: tamanhos estranhos | Confira as duas marcas da régua (use a lupa) e a distância digitada. A régua deve estar no plano da solda e a foto, de frente. |
+| Atualizei o app: perco as fotos e o treino? | Não. Fotos, classes e modelo ficam no aparelho e continuam lá após a atualização. Mas cada endereço tem seus próprios dados: o que foi treinado em `localhost` não aparece no link do GitHub Pages (use Exportar/Importar). |
 
 ---
 
@@ -397,11 +455,12 @@ IA com [TensorFlow.js 4.22](https://www.tensorflow.org/js), copiado em `vendor/`
 Dados em IndexedDB. Service worker para cache e uso offline.
 
 ```
-index.html               página única (abas Inspecionar / Treinar / Modelo)
+index.html               página única (abas Inspecionar / Treinar / Medir / Modelo)
 css/style.css            visual (tema escuro, botões grandes)
 js/app.js                inicialização, estado, fila que calcula os vetores das fotos
 js/model.js              motor de IA: base, vetores, previsão + mapa de calor, treino (JS puro) e validação cruzada
 js/norma.js              regras da norma e decisão BOA / RUIM / INCERTO
+js/poros.js              medição de poros pela foto (detecção, mm, limites da norma), sem IA
 js/camera.js             câmera (traseira, troca, lanterna)
 js/store.js              IndexedDB (classes, fotos, vetores, modelo, configurações)
 js/transfer.js           exportar / importar
@@ -414,7 +473,7 @@ models/base-geral/       MobileNet v1 1.0 224 (ImageNet) cortada em conv_pw_13_r
 models/base-solda/       (Etapa 2) gerada por tools/pretrain
 sw.js                    service worker (cache offline)
 servidor.py              servidor local (tipos MIME corretos, sem cache)
-tests/selftest.html      autoteste do pipeline de IA
+tests/selftest.html      autoteste do pipeline de IA e da medição de poros
 tools/prepare_base.mjs   recria models/base-geral a partir do MobileNet oficial
 tools/gerar_icones.py    gera os ícones PNG
 tools/pretrain/          Etapa 2 (script Python, notebook Colab, verificação no TF.js)
@@ -426,7 +485,8 @@ localmente, abra `http://localhost:8000/?pwa`.
 
 **Autoteste:** abra http://localhost:8000/tests/selftest.html. Ele gera imagens sintéticas de solda (boa,
 porosidade, trinca) e verifica vetores, treino com validação cruzada, previsão, mapa de calor, regras da norma
-e exportar → importar. Deve terminar com **✅ TODOS OS TESTES PASSARAM**.
+e exportar → importar. Também gera cordões com poros de diâmetro conhecido e confere a contagem, os mm (±15%)
+e os limites de porosidade da norma. Deve terminar com **✅ TODOS OS TESTES PASSARAM**.
 
 **Publicar uma nova versão:**
 1. Edite os arquivos.
