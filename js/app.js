@@ -10,7 +10,7 @@ import * as abaTreinar from './tab-treinar.js';
 import * as abaModelo from './tab-modelo.js';
 import * as abaMedir from './tab-medir.js';
 
-export const VERSAO_APP = '1.1.0';
+export const VERSAO_APP = '1.2.0';
 
 const CONFIG_PADRAO = {
   limite: 0.7,

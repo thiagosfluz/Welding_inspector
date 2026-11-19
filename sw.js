@@ -1,6 +1,6 @@
 // Service worker: guarda o app e a IA no aparelho para funcionar sem internet.
 // Ao publicar uma nova versão, aumente VERSAO para os aparelhos baixarem a atualização.
-const VERSAO = '1.1.0';
+const VERSAO = '1.2.0';
 const CACHE = `inspetor-solda-${VERSAO}`;
 
 const ARQUIVOS = [

@@ -60,15 +60,16 @@ Each photo is augmented five ways (mirrored, rotated, darkened), and cross-valid
 1. [Amanhã: passo a passo para colocar em uso](#amanhã-passo-a-passo-para-colocar-em-uso)
 2. [Como o app funciona](#como-o-app-funciona)
 3. [Norma AWS D1.1 dentro do app](#norma-aws-d11-dentro-do-app)
-4. [Processo de treinamento (detalhado)](#processo-de-treinamento-detalhado)
-5. [Usando na inspeção](#usando-na-inspeção)
-6. [Medir poros (aba 📏 Medir)](#medir-poros-aba--medir)
-7. [Manutenção do modelo](#manutenção-do-modelo)
-8. [Etapa 2 — base de solda (opcional)](#etapa-2--base-de-solda-opcional)
-9. [Instalar no celular e no PC](#instalar-no-celular-e-no-pc)
-10. [Limitações e segurança](#limitações-e-segurança)
-11. [Problemas comuns](#problemas-comuns)
-12. [Para desenvolvedores](#para-desenvolvedores)
+4. [Como treinar a IA corretamente (passo a passo)](#como-treinar-a-ia-corretamente-passo-a-passo)
+5. [Processo de treinamento (detalhado)](#processo-de-treinamento-detalhado)
+6. [Usando na inspeção](#usando-na-inspeção)
+7. [Medir poros (aba 📏 Medir)](#medir-poros-aba--medir)
+8. [Manutenção do modelo](#manutenção-do-modelo)
+9. [Etapa 2 — base de solda (opcional)](#etapa-2--base-de-solda-opcional)
+10. [Instalar no celular e no PC](#instalar-no-celular-e-no-pc)
+11. [Limitações e segurança](#limitações-e-segurança)
+12. [Problemas comuns](#problemas-comuns)
+13. [Para desenvolvedores](#para-desenvolvedores)
 
 ---
 
@@ -107,6 +108,8 @@ O celular só libera a câmera para sites **HTTPS**. O jeito mais simples e grat
 3. Em cada classe, toque **📷 Fotografar** (ou **📁 Enviar fotos** se as fotos já estiverem no celular/PC).
    - Mínimo **20 fotos por classe**; o ideal é **50 ou mais**.
    - Varie ângulo, distância, luz e peça. Use a **Rajada ×10** movendo o celular devagar.
+   - **Sem marca de caneta perto da solda** e com várias peças diferentes por classe:
+     siga o [guia de treino passo a passo](#como-treinar-a-ia-corretamente-passo-a-passo).
 4. Toque **Treinar modelo**. Leva de segundos a 1 minuto.
 5. Leia o painel **Qualidade do modelo** (veja [Ler a qualidade](#4-ler-a-tela-qualidade-do-modelo)).
 6. Vá em **🔍 Inspecionar**, toque **Ligar câmera** e teste em **peças que não foram fotografadas**.
@@ -145,8 +148,10 @@ de fotos por classe e treina em segundos, no próprio celular.
 Isso ajuda o modelo a não depender da posição do cordão nem da iluminação.
 
 **Validação honesta.** No treino, o app separa as fotos em 5 partes (*validação cruzada*). Cada parte é
-testada por um modelo que **não a viu** no treino. O acerto mostrado é, portanto, o acerto esperado em
-peças novas parecidas com as do quadro. Depois o modelo final é treinado com todas as fotos.
+testada por um modelo que **não a viu** no treino. Fotos da mesma **rajada** (tiradas com menos de 5 s de intervalo,
+quase iguais) ficam sempre na mesma parte; senão o modelo seria testado numa foto "gêmea" de outra que ele já viu,
+e o acerto sairia inflado. O acerto mostrado é, portanto, o acerto esperado em peças novas parecidas com as do quadro.
+Depois o modelo final é treinado com todas as fotos.
 
 **Confiança e decisão.**
 - O app soma a probabilidade de todas as classes de defeito e a de todas as classes boas.
@@ -201,6 +206,118 @@ publique de novo (veja [Para desenvolvedores](#para-desenvolvedores)).
 
 ---
 
+## Como treinar a IA corretamente (passo a passo)
+
+A IA aprende **qualquer diferença** que existir entre as fotos de uma classe e as de outra, não só o defeito.
+Se só as fotos de porosidade têm um risco de caneta, ela aprende "risco de caneta = porosidade".
+Se todas as fotos de trinca foram tiradas na mesma bancada, ela aprende a bancada.
+
+> **Exemplo real deste projeto.** As fotos de defeito tinham linhas e setas de caneta marcando o defeito; as de solda boa, não.
+> Num teste, bastou desenhar uma linha de caneta numa foto de solda boa para a IA chamá-la de defeito em **74% dos casos**.
+> E como quase todas as fotos eram rajadas da mesma peça, a tela mostrava 100% de acerto, mas em peças novas o acerto real era de cerca de 72%.
+
+O objetivo do treino é simples: **a única coisa que muda de uma classe para outra deve ser o defeito.**
+Tudo o mais (caneta, fundo, luz, ângulo, sujeira, peça) precisa variar igualmente em todas as classes.
+
+### Passo 1 — Separar as peças
+
+1. Junte **peças reais diferentes** para cada classe: no mínimo **8 a 10 peças por classe**, mais é melhor.
+   10 peças diferentes ensinam muito mais que 100 fotos da mesma peça.
+2. O **inspetor qualificado** classifica cada peça conforme a AWS D1.1 (Boa, Porosidade, Trinca…).
+   Na dúvida, a peça não entra no treino.
+3. Separe **2 a 3 peças de cada classe para o teste final** (Passo 9). Essas peças **nunca** são fotografadas no treino.
+4. Comece com poucas classes bem diferentes entre si (ex.: Boa, Porosidade, Trinca). Só crie uma classe nova
+   quando tiver pelo menos 8 peças dela.
+
+### Passo 2 — Preparar as peças (sem marcação perto da solda)
+
+- **Não faça risco, seta, círculo, número ou etiqueta de caneta/giz perto da solda.** A IA aprende a marca, não o defeito.
+- Se precisar identificar a peça, escreva **longe da solda, fora do enquadramento**, ou use uma etiqueta presa na bancada.
+- Se a marcação for inevitável, faça **a mesma marcação também nas peças boas**, para ela não diferenciar as classes.
+- Deixe todas as classes no **mesmo estado de limpeza**. Se só as peças com trinca têm fuligem ou resíduo branco,
+  a IA aprende a fuligem. Escove ou não escove, mas faça igual em todas.
+- Peças que **já têm** marca de caneta: limpe a marca (álcool/solvente) antes de fotografar ou deixe a peça de fora.
+
+### Passo 3 — Fotografar cada peça em várias posições
+
+Para **cada peça**, tire fotos em **4 a 6 posições diferentes**:
+
+| Variação | Como fazer |
+|---|---|
+| Ângulo | de frente (0°), inclinado ~30° para um lado e ~30° para o outro |
+| Distância | perto (~10 cm), média (~20 cm) e longe (~30 cm), sempre com a solda dentro do quadro tracejado |
+| Rotação | celular na vertical e na horizontal (cordão em pé e deitado na imagem) |
+| Luz | luz ambiente e com a 🔦 lanterna; perto e longe da janela |
+| Fundo | bancada, chão, peça na mão |
+
+- Em cada posição, **1 a 3 fotos** bastam. A **Rajada ×10** ajuda, mas mova o celular devagar durante ela; 10 fotos paradas iguais não ensinam nada.
+- Faça **pausas de alguns segundos** entre uma peça e outra: o app separa as fotos em "rajadas" pelo intervalo de tempo
+  (menos de 5 s = mesma rajada) e usa isso para medir o acerto de forma honesta.
+- Exemplo de meta por classe: **10 peças × 5 posições × 2 fotos = 100 fotos**, em pelo menos **8 rajadas**.
+- Fotografe do jeito que a inspeção vai acontecer: mesmo tipo de celular, mesma distância e mesma luz do chão de fábrica.
+
+### Passo 4 — Defeito bem enquadrado
+
+- O defeito precisa estar **dentro do quadro tracejado** e **visível na tela**. Poros pequenos e trincas finas exigem chegar perto.
+- Se você não consegue ver o defeito na foto, a IA também não consegue: apague a foto.
+- Na classe **Boa**, fotografe soldas boas **parecidas** com as ruins (mesmo tipo de junta, mesmo material, mesmo processo),
+  não só as mais bonitas.
+
+### Passo 5 — Equilibrar as classes
+
+- Quantidades **parecidas** de fotos **e de peças** em todas as classes. Ex.: 100 Boa / 90 Porosidade / 80 Trinca.
+- Evite 300 fotos de Boa e 20 de Trinca. A classe pequena fica fraca e o app avisa.
+- Embaixo de cada classe aparece **"N rajadas (peças/posições diferentes)"**. Em amarelo, faltam peças: o recomendado é **8 ou mais**.
+
+### Passo 6 — Revisar antes de treinar
+
+- Toque em **🗂 Ver e selecionar** em cada classe e apague as fotos tremidas, escuras, sem a solda ou com a solda cortada.
+  Use **☑ Selecionar várias** (e **selecionar rajada**) para apagar muitas de uma vez.
+- Confira se nenhuma foto está na **classe errada**: toque na foto → *Mover para a classe*.
+- Procure **marcas de caneta** que passaram despercebidas e apague essas fotos.
+
+### Passo 7 — Treinar e ler a qualidade
+
+1. Toque **🧠 Treinar modelo**.
+2. O app valida **por rajada**: as fotos da mesma rajada ficam sempre juntas, e o modelo é testado em fotos de rajadas que ele não viu.
+   O acerto mostrado é mais baixo que a validação foto a foto das versões antigas, mas é o **acerto real** esperado em peças novas.
+3. Metas para liberar o uso como apoio: **acerto geral ≥ 90%**, **defeitos detectados como RUIM ≥ 95%**, nenhuma classe abaixo de 80%
+   (veja [Ler a tela "Qualidade do modelo"](#4-ler-a-tela-qualidade-do-modelo)).
+4. Leia os avisos em **Atenção**: poucas rajadas, classes desequilibradas, maior confusão.
+
+### Passo 8 — Corrigir o que estiver fraco
+
+- Abra **"Fotos que confundiram o modelo"**. Muitas vezes a foto está na classe errada ou não mostra o defeito.
+- Para a classe mais fraca, traga **peças novas** (não mais fotos das mesmas peças) e fotografe como no Passo 3.
+- Se duas classes se confundem muito e são parecidas a olho nu, **junte-as** numa só.
+- Treine de novo e compare.
+
+### Passo 9 — Teste no mundo real (peças nunca vistas)
+
+1. Use as peças separadas no Passo 1, **sem marcação**, na aba **🔍 Inspecionar**, como na inspeção de verdade.
+2. Anote numa planilha: peça, classificação do inspetor, resultado do app (BOA / RUIM / INCERTO).
+3. Libere como apoio só se **nenhum defeito sair como BOA**. INCERTO é aceitável, porque manda o inspetor olhar.
+4. Guarde a planilha como registro do kaizen e repita o teste depois de cada mudança grande no treino.
+
+### Passo 10 — Manter o modelo bom
+
+- Quando o app errar na inspeção, toque **✋ Resultado errado?** e escolha a classe certa. No fim do dia, treine de novo.
+- Mudou a peça, o material, o processo ou a iluminação? Fotografe peças novas nas novas condições.
+- Exporte um backup toda semana (**⚙️ Modelo → ⬆ Exportar**).
+
+### Resumo rápido
+
+| Faça | Evite |
+|---|---|
+| Peças sem marcação perto da solda | Risco, seta ou etiqueta de caneta só nas peças com defeito |
+| 8–10+ peças diferentes por classe | Centenas de fotos da mesma peça |
+| Variar ângulo, distância, rotação, luz e fundo em **todas** as classes | Uma classe sempre na mesma bancada ou com a mesma luz |
+| Mesma limpeza em todas as classes | Fuligem/resíduo só numa classe |
+| Pausa entre peças; rajada movendo o celular | Rajadas paradas, todas iguais |
+| Testar em peças nunca fotografadas | Confiar só no número da tela |
+
+---
+
 ## Processo de treinamento (detalhado)
 
 ### 1. Montar o quadro "certo × errado"
@@ -210,7 +327,8 @@ publique de novo (veja [Para desenvolvedores](#para-desenvolvedores)).
   (Mordedura, Falta de fusão, Respingo, Cratera…). Comece com poucas classes bem definidas.
 - Cada amostra deve ser **classificada pelo inspetor qualificado** conforme a AWS D1.1. A IA aprende exatamente o que
   vocês ensinarem: foto na classe errada ensina errado.
-- Tenha **várias peças diferentes por classe** (ideal: 5 ou mais), não só várias fotos da mesma peça.
+- Tenha **várias peças diferentes por classe** (ideal: 8 a 10 ou mais), não só várias fotos da mesma peça.
+- **Nada de risco, seta ou etiqueta de caneta perto da solda** (veja o [guia de treino](#como-treinar-a-ia-corretamente-passo-a-passo)).
 - Separe algumas peças de cada classe **para teste** e não as fotografe no treino.
 
 ### 2. Fotografar
@@ -228,14 +346,18 @@ publique de novo (veja [Para desenvolvedores](#para-desenvolvedores)).
   por classe, mas o resultado será fraco.
 - A barra abaixo de cada classe mostra o progresso até 50 fotos.
 - **Rajada ×10:** tira 10 fotos em ~3 s. Mova o celular devagar durante a rajada para gerar variação.
+  Fotos com menos de 5 s de intervalo contam como **uma rajada** (a mesma peça/posição). Embaixo de cada classe
+  o app mostra quantas rajadas ela tem; o recomendado é **8 ou mais**.
 - Fotos antigas (galeria, WhatsApp) podem entrar por **📁 Enviar fotos**. O app recorta o quadrado central.
 - Para ver, mover para outra classe ou excluir uma foto, toque nela.
+- Para excluir ou mover **várias fotos de uma vez**: **🗂 Ver e selecionar** → **☑ Selecionar várias** → toque nas fotos
+  (ou em **selecionar rajada** para marcar a rajada inteira) → **🗑 Excluir** ou **Mover para…**.
 
 ### 3. Treinar
 
 Toque **🧠 Treinar modelo**. O app:
 1. prepara as fotos que ainda não foram processadas;
-2. faz a validação cruzada (5 rodadas);
+2. faz a validação cruzada (5 rodadas), mantendo as fotos de cada rajada juntas;
 3. treina o modelo final com todas as fotos e já o usa na inspeção.
 
 Classes com menos de 5 fotos ficam de fora, e o app avisa quais foram. Depois de qualquer mudança nas fotos, aparece
@@ -245,7 +367,7 @@ um **!** vermelho na aba Treinar, lembrando de treinar de novo.
 
 | Indicador | O que significa | Meta sugerida para liberar o uso |
 |---|---|---|
-| **Acerto geral** | % das fotos classificadas na classe certa, por um modelo que não as viu | ≥ 90% |
+| **Acerto geral** | % das fotos classificadas na classe certa, por um modelo que não viu nenhuma foto da mesma rajada | ≥ 90% |
 | **Defeitos detectados como RUIM** | das fotos de defeito, quantas deram RUIM (qualquer defeito); é o mais importante | ≥ 95% |
 | **Soldas boas aprovadas** | das fotos boas, quantas deram BOA | ≥ 85% |
 | **Acerto por classe** | onde o modelo está mais fraco | nenhuma classe < 80% |
@@ -342,7 +464,7 @@ onde o contraste cai pela metade. A escala vem da régua.
 |---|---|
 | O app errou numa peça | **✋ Resultado errado?** → classe correta → treinar de novo |
 | Novo tipo de defeito | **Treinar → ＋ Nova classe**, escolher o item da norma, fotografar 20+ fotos, treinar |
-| Classe com fotos erradas | Tocar na foto → *Mover para a classe* ou *Excluir* |
+| Classe com fotos erradas | Tocar na foto → *Mover para a classe* ou *Excluir*. Para várias: **🗂 Ver e selecionar → ☑ Selecionar várias** |
 | Mudou a peça, o processo ou a iluminação | Fotografar exemplos novos nas classes e treinar de novo |
 | Backup | **Modelo → ⬆ Exportar** toda semana; guarde o arquivo no Drive/rede |
 | Novo celular/PC | Abrir o app → **Modelo → ⬇ Importar → Substituir** |
@@ -444,6 +566,7 @@ Quando houver versão nova publicada, aparece a faixa azul **"Nova versão dispo
 | "Treinado com outra base — treine de novo" | A base foi trocada. Toque em Treinar modelo. |
 | Medir: aparecem poros falsos ou faltam poros | Diminua/aumente a **sensibilidade**; toque nos falsos para ignorar e nos que faltaram para adicionar. Estreite a faixa para cobrir só o cordão. |
 | Medir: tamanhos estranhos | Confira as duas marcas da régua (use a lupa) e a distância digitada. A régua deve estar no plano da solda e a foto, de frente. |
+| O acerto caiu depois de atualizar o app | Normal: a validação agora separa por rajada e mostra o acerto real (antes, fotos quase iguais inflavam o número). Melhore com mais peças diferentes, sem marcação de caneta. |
 | Atualizei o app: perco as fotos e o treino? | Não. Fotos, classes e modelo ficam no aparelho e continuam lá após a atualização. Mas cada endereço tem seus próprios dados: o que foi treinado em `localhost` não aparece no link do GitHub Pages (use Exportar/Importar). |
 
 ---
@@ -474,6 +597,7 @@ models/base-solda/       (Etapa 2) gerada por tools/pretrain
 sw.js                    service worker (cache offline)
 servidor.py              servidor local (tipos MIME corretos, sem cache)
 tests/selftest.html      autoteste do pipeline de IA e da medição de poros
+tests/benchmark.html     compara variantes do motor com as fotos de um arquivo exportado (?arquivo=nome.json)
 tools/prepare_base.mjs   recria models/base-geral a partir do MobileNet oficial
 tools/gerar_icones.py    gera os ícones PNG
 tools/pretrain/          Etapa 2 (script Python, notebook Colab, verificação no TF.js)
@@ -505,7 +629,8 @@ cd tools && npm install && node prepare_base.mjs <pasta_baixada> ../models/base-
 - Entrada 224×224 RGB normalizada para [-1, 1]; saída da base: mapa 7×7×1024 (camada `conv_pw_13_relu`).
 - Vetor = média do mapa. Cada foto gera 5 vetores (original, espelhos H/V, rotação 90°, escurecida).
 - Cabeça: regressão softmax com Adam, dropout 0,2, suavização de rótulos 0,1, L2 5e-4 e peso por classe. É treinada em JavaScript puro (~5–10 s).
-- Validação cruzada estratificada (k = até 5) por foto: as variações de uma foto ficam sempre na mesma parte.
+- Validação cruzada estratificada (k = até 5) **por rajada**: fotos com menos de 5 s de intervalo (`INTERVALO_RAJADA_S`) formam um grupo,
+  e cada grupo (com as variações das suas fotos) fica inteiro numa parte. Classe com uma única rajada cai na divisão foto a foto, com aviso.
 - Mapa de calor: pesos da cabeça aplicados em cada uma das 7×7 posições (CAM), contrastando a classe do defeito com as demais.
 - A base de solda reaproveita a topologia de `models/base-geral/model.json`. O script grava os pesos ajustados do Keras
   diretamente no formato TF.js, sem o pacote `tensorflowjs`, e `verificar_base.mjs` confere o resultado numericamente.

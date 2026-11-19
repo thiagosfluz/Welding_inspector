@@ -1,6 +1,6 @@
 // Aba "Treinar": classes, fotos (câmera ou arquivo), treino e qualidade do modelo.
 import * as store from './store.js';
-import { treinarComValidacao, VARIANTES } from './model.js';
+import { treinarComValidacao, VARIANTES, INTERVALO_RAJADA_S } from './model.js';
 import { desenharQuadrado, novoCanvas, canvasParaBlob, arquivoParaQuadrado, TAM_FOTO, RECORTE_CAMERA } from './imaging.js';
 import { $, el, toast, abrirModal, fecharModal, confirmar, pct, dataHora } from './ui.js';
 import { proximaCor } from './app.js';
@@ -8,9 +8,18 @@ import { proximaCor } from './app.js';
 export const MIN_FOTOS = 5;      // mínimo para a classe entrar no treino
 export const REC_FOTOS = 20;     // recomendado
 export const IDEAL_FOTOS = 50;   // ideal
+export const REC_RAJADAS = 8;    // rajadas (peças/posições diferentes) recomendadas por classe
 
 let app;
 let treinando = false;
+
+// Quantas rajadas (sequências de fotos com menos de INTERVALO_RAJADA_S entre si) há numa lista de fotos.
+export function contarRajadas(fotos) {
+  const ts = fotos.map((f) => f.criadoEm).filter(Number.isFinite).sort((a, b) => a - b);
+  let n = ts.length ? 1 : 0;
+  for (let i = 1; i < ts.length; i++) if (ts[i] - ts[i - 1] > INTERVALO_RAJADA_S * 1000) n++;
+  return n;
+}
 const urls = new Map(); // fotoId -> objectURL das miniaturas
 
 export function iniciar(a) {
@@ -60,12 +69,15 @@ async function renderClasses() {
     const n = fotos.length;
     const crit = app.norma ? app.norma.resolver(c.criterio, app.config.norma) : null;
     const meta = n >= IDEAL_FOTOS ? 'ideal atingido 👍' : n >= REC_FOTOS ? `bom · ideal ${IDEAL_FOTOS}` : `mínimo recomendado ${REC_FOTOS}`;
+    const rajadas = contarRajadas(fotos);
     return el('div', { class: 'classe', style: { '--cor': c.cor } },
       el('div', { class: 'classe-topo' },
         el('span', { class: 'classe-nome' }, c.nome),
         crit && el('span', { class: `chip ${crit.acao}`, title: crit.nome }, crit.rotulo),
         el('button', { class: 'btn btn-pequeno', onclick: () => editarClasse(c), 'aria-label': `Editar ${c.nome}` }, '✎ Editar')),
       el('div', { class: 'classe-meta' }, `${n} foto${n === 1 ? '' : 's'} · ${meta}${crit ? ` · norma: ${crit.nome}` : ''}`),
+      n > 0 && el('div', { class: `classe-meta classe-rajadas ${rajadas < REC_RAJADAS ? 'pouca-variedade' : ''}` },
+        `${rajadas} rajada${rajadas === 1 ? '' : 's'} (peças/posições diferentes)${rajadas < REC_RAJADAS ? ` · recomendado ${REC_RAJADAS}+` : ' 👍'}`),
       el('div', { class: `meta-barra ${n >= REC_FOTOS ? 'ok' : ''}` }, el('div', { style: { width: `${Math.min(100, (n / IDEAL_FOTOS) * 100)}%` } })),
       el('div', { class: 'miniaturas' }, fotos.slice(0, 14).map((f) =>
         el('img', { src: urlDe(f), alt: '', loading: 'lazy', onclick: () => verFoto(f) }))),
@@ -73,7 +85,7 @@ async function renderClasses() {
         el('button', { class: 'btn btn-primario', onclick: () => fotografar(c) }, '📷 Fotografar'),
         el('label', { class: 'btn' }, '📁 Enviar fotos',
           el('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, onchange: (e) => enviarFotos(c, e.target) })),
-        n > 14 && el('button', { class: 'btn', onclick: () => verTodas(c) }, `Ver todas (${n})`)));
+        n > 0 && el('button', { class: 'btn', onclick: () => verTodas(c) }, `🗂 Ver e selecionar (${n})`)));
   }));
 }
 
@@ -143,7 +155,9 @@ async function enviarFotos(classe, input) {
     try {
       const c = await arquivoParaQuadrado(arq, TAM_FOTO);
       const blob = await canvasParaBlob(c, 0.9);
-      await store.salvarFoto({ id: store.novoId(), classeId: classe.id, blob, criadoEm: Date.now(), origem: 'arquivo' });
+      // data da foto (quando o arquivo informa): fotos de momentos diferentes contam como rajadas diferentes
+      const quando = Number.isFinite(arq.lastModified) && arq.lastModified > 0 ? arq.lastModified : Date.now();
+      await store.salvarFoto({ id: store.novoId(), classeId: classe.id, blob, criadoEm: quando, origem: 'arquivo' });
       ok++;
     } catch (e) {
       console.warn('Imagem ignorada', arq.name, e);
@@ -252,13 +266,104 @@ async function verFoto(foto, voltar) {
   if (voltar) voltar();
 }
 
-async function verTodas(classe) {
+// Galeria da classe, agrupada por rajada. Toque abre a foto; no modo "Selecionar várias",
+// toque marca/desmarca e dá para excluir ou mover várias fotos (ou rajadas inteiras) de uma vez.
+async function verTodas(classe, selecionar = false) {
   const fotos = (await store.listarFotos(classe.id)).sort((a, b) => b.criadoEm - a.criadoEm);
+  if (!fotos.length) { toast(`Nenhuma foto em “${classe.nome}”`); return; }
+  const rajadas = [];
+  for (const f of fotos) {
+    const ult = rajadas[rajadas.length - 1];
+    if (ult && Math.abs(ult[ult.length - 1].criadoEm - f.criadoEm) <= INTERVALO_RAJADA_S * 1000) ult.push(f);
+    else rajadas.push([f]);
+  }
+
+  const sel = new Set();
+  let selecionando = selecionar;
   let escolhida = null;
-  const grade = el('div', { class: 'grade' }, fotos.map((f) =>
-    el('img', { src: urlDe(f), alt: '', loading: 'lazy', onclick: () => { escolhida = f; fecharModal('foto'); } })));
-  const r = await abrirModal(grade, { titulo: `${classe.nome} — ${fotos.length} fotos` });
-  if (r === 'foto' && escolhida) await verFoto(escolhida, () => verTodas(classe));
+  const figuras = new Map();
+  const botoesRajada = [];
+
+  const btnModo = el('button', { class: 'btn btn-pequeno' });
+  const btnTodas = el('button', { class: 'btn btn-pequeno' });
+  const contador = el('span', { class: 'sel-contador' });
+  const destino = el('select', { 'aria-label': 'Mover para a classe' },
+    el('option', { value: '' }, 'Mover para…'),
+    app.classes.filter((c) => c.id !== classe.id).map((c) => el('option', { value: c.id }, c.nome)));
+  const btnMover = el('button', { class: 'btn btn-pequeno', onclick: () => fecharModal('mover') }, 'Mover');
+  const btnExcluir = el('button', { class: 'btn btn-pequeno btn-perigo', onclick: () => fecharModal('excluir') });
+  const barra = el('div', { class: 'sel-barra' }, contador, btnTodas, destino, btnMover, btnExcluir);
+  const dica = el('span', { class: 'dica' });
+
+  const grade = el('div', { class: 'grade' });
+  for (const r of rajadas) {
+    const b = el('button', { class: 'btn-link sel-rajada' });
+    b.addEventListener('click', () => {
+      const todas = r.every((f) => sel.has(f.id));
+      r.forEach((f) => (todas ? sel.delete(f.id) : sel.add(f.id)));
+      atualizar();
+    });
+    botoesRajada.push({ b, r });
+    grade.append(el('div', { class: 'rajada-topo' },
+      el('span', {}, `${dataHora(r[r.length - 1].criadoEm)} · ${r.length} foto${r.length > 1 ? 's' : ''}`), b));
+    for (const f of r) {
+      const fig = el('figure', { class: 'foto-sel' },
+        el('img', { src: urlDe(f), alt: '', loading: 'lazy' }),
+        el('span', { class: 'marca-sel', 'aria-hidden': 'true' }, '✓'));
+      fig.addEventListener('click', () => {
+        if (!selecionando) { escolhida = f; fecharModal('foto'); return; }
+        if (sel.has(f.id)) sel.delete(f.id); else sel.add(f.id);
+        atualizar();
+      });
+      figuras.set(f.id, fig);
+      grade.append(fig);
+    }
+  }
+
+  function atualizar() {
+    btnModo.textContent = selecionando ? '✕ Cancelar seleção' : '☑ Selecionar várias';
+    dica.textContent = selecionando
+      ? 'Toque nas fotos para marcar. “Selecionar rajada” marca a rajada inteira.'
+      : 'Toque numa foto para ver. Para excluir ou mover várias, toque em “Selecionar várias”.';
+    barra.hidden = !selecionando;
+    grade.classList.toggle('selecionando', selecionando);
+    for (const [id, fig] of figuras) fig.classList.toggle('selecionada', sel.has(id));
+    for (const { b, r } of botoesRajada) {
+      b.hidden = !selecionando;
+      b.textContent = r.every((f) => sel.has(f.id)) ? 'desmarcar rajada' : 'selecionar rajada';
+    }
+    contador.textContent = `${sel.size} de ${fotos.length} selecionada${sel.size === 1 ? '' : 's'}`;
+    btnTodas.textContent = sel.size === fotos.length ? 'Desmarcar todas' : 'Selecionar todas';
+    btnExcluir.textContent = `🗑 Excluir (${sel.size})`;
+    btnExcluir.disabled = !sel.size;
+    btnMover.disabled = !sel.size || !destino.value;
+  }
+  btnModo.addEventListener('click', () => { selecionando = !selecionando; if (!selecionando) sel.clear(); atualizar(); });
+  btnTodas.addEventListener('click', () => {
+    if (sel.size === fotos.length) sel.clear(); else fotos.forEach((f) => sel.add(f.id));
+    atualizar();
+  });
+  destino.addEventListener('change', atualizar);
+  atualizar();
+
+  const r = await abrirModal(el('div', {}, el('div', { class: 'sel-topo' }, btnModo, dica), barra, grade),
+    { titulo: `${classe.nome} — ${fotos.length} fotos em ${rajadas.length} rajada${rajadas.length > 1 ? 's' : ''}` });
+  if (r === 'foto' && escolhida) { await verFoto(escolhida, () => verTodas(classe)); return; }
+  const ids = [...sel];
+  if (r === 'excluir' && ids.length) {
+    if (await confirmar(`Excluir ${ids.length} foto${ids.length > 1 ? 's' : ''} de “${classe.nome}”? Isso não pode ser desfeito.`, { titulo: 'Excluir fotos', sim: 'Excluir', perigo: true })) {
+      for (const id of ids) { await store.excluirFoto(id); liberarUrl(id); }
+      toast(`${ids.length} foto${ids.length > 1 ? 's excluídas' : ' excluída'}`);
+      await app.recarregarDados();
+    }
+    await verTodas(classe, true);
+  } else if (r === 'mover' && ids.length && destino.value) {
+    const alvo = app.classes.find((c) => c.id === destino.value);
+    for (const id of ids) await store.moverFoto(id, destino.value);
+    toast(`${ids.length} foto${ids.length > 1 ? 's movidas' : ' movida'} para “${alvo?.nome}”`);
+    await app.recarregarDados();
+    await verTodas(classe, true);
+  }
 }
 
 // ---------------- treino ----------------
@@ -290,7 +395,7 @@ export async function treinar() {
       for (const f of fotos) {
         const vet = await store.obterVetor(base.id, f.id);
         if (vet && vet.length === C * VARIANTES.length) {
-          amostras.push({ fotoId: f.id, k, vet });
+          amostras.push({ fotoId: f.id, k, vet, t: f.criadoEm });
           porClasse[c.id] = (porClasse[c.id] || 0) + 1;
         }
       }
@@ -361,6 +466,9 @@ async function renderQualidade() {
   let pior = null;
   for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) if (i !== j && m.matriz[i][j] > 0 && (!pior || m.matriz[i][j] > pior.v)) pior = { i, j, v: m.matriz[i][j] };
   if (pior) avisos.push(`Maior confusão: “${nomes[pior.i]}” classificada como “${nomes[pior.j]}” (${pior.v}×). Veja as fotos abaixo — podem estar na classe errada ou precisar de mais exemplos.`);
+  if (m.validacao !== 'rajada') avisos.push('Este acerto foi calculado foto a foto (versão anterior do app) e fica otimista quando há fotos em rajada. Toque em “Treinar modelo” para ver o acerto real, separado por rajada.');
+  (m.classesUmaRajada || []).forEach((k) => avisos.push(`“${nomes[k]}” tem fotos de uma única rajada: o acerto dessa classe está otimista. Fotografe outras peças em momentos diferentes.`));
+  (m.rajadasPorClasse || []).forEach((r, k) => { if (r >= 2 && r < REC_RAJADAS) avisos.push(`“${nomes[k]}” tem só ${r} rajadas (peças/posições diferentes). Recomendado ${REC_RAJADAS}+: varie peças, ângulos e luz.`); });
   if (m.ignoradas?.length) avisos.push(`Classes fora do treino por terem menos de ${MIN_FOTOS} fotos: ${m.ignoradas.join(', ')}.`);
   if (av.defeitosPegos != null && av.defeitosPegos < 0.95) avisos.push('Alguns defeitos passaram como BOA na validação. Antes de confiar, adicione mais fotos de defeito e treine de novo.');
 
@@ -385,7 +493,9 @@ async function renderQualidade() {
     el('div', { class: `nota ${nivel[0]}` },
       el('span', { class: 'nota-valor' }, pct(m.acerto)),
       el('span', { class: 'nota-rotulo' }, `de acerto · ${nivel[1]}`)),
-    el('p', { class: 'dica' }, `Validação cruzada em ${m.kf} partes com ${m.total} fotos: cada foto foi testada por um modelo que NÃO a viu no treino. Treinado em ${dataHora(modelo.treinadoEm)} (${Math.round(modelo.duracaoSeg || 0)} s).`),
+    el('p', { class: 'dica' }, m.validacao === 'rajada'
+      ? `Validação cruzada em ${m.kf} partes com ${m.total} fotos em ${(m.rajadasPorClasse || []).reduce((s, x) => s + x, 0)} rajadas: fotos da mesma rajada (tiradas com menos de ${m.intervaloRajadaS} s de intervalo) ficam sempre juntas, então cada foto foi testada por um modelo que não viu nenhuma foto “gêmea” dela. Treinado em ${dataHora(modelo.treinadoEm)} (${Math.round(modelo.duracaoSeg || 0)} s).`
+      : `Validação cruzada em ${m.kf} partes com ${m.total} fotos, separadas foto a foto (versão antiga). Treinado em ${dataHora(modelo.treinadoEm)} (${Math.round(modelo.duracaoSeg || 0)} s).`),
     el('div', { class: 'kpis' },
       el('div', { class: 'kpi' }, el('b', {}, av.defeitosPegos == null ? '—' : pct(av.defeitosPegos)), el('span', {}, `Defeitos detectados como RUIM (${av.nokPego}/${av.nokTotal})`)),
       el('div', { class: 'kpi' }, el('b', {}, av.boasAprovadas == null ? '—' : pct(av.boasAprovadas)), el('span', {}, `Soldas boas aprovadas (${av.okAprov}/${av.okTotal})`))),

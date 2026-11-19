@@ -260,22 +260,77 @@ export function preverLote(X, n, C, W, b, K) {
   return out;
 }
 
+// Fotos tiradas com menos deste intervalo entre si (ex.: rajada ×10) são da mesma peça e quase iguais.
+export const INTERVALO_RAJADA_S = 5;
+
+/**
+ * Agrupa as fotos de cada classe em "rajadas": fotos seguidas com menos de `intervaloS` segundos
+ * entre uma e outra. Amostras sem horário (`t`) formam um grupo cada.
+ * Retorna um Int32Array com o número do grupo de cada amostra.
+ */
+export function agruparRajadas(amostras, intervaloS = INTERVALO_RAJADA_S) {
+  const grupo = new Int32Array(amostras.length);
+  const porClasse = new Map();
+  amostras.forEach((a, i) => { if (!porClasse.has(a.k)) porClasse.set(a.k, []); porClasse.get(a.k).push(i); });
+  let prox = 0;
+  for (const idx of porClasse.values()) {
+    const comHora = idx.filter((i) => Number.isFinite(amostras[i].t)).sort((i, j) => amostras[i].t - amostras[j].t);
+    let anterior = null;
+    for (const i of comHora) {
+      if (anterior === null || amostras[i].t - anterior > intervaloS * 1000) prox++;
+      grupo[i] = prox;
+      anterior = amostras[i].t;
+    }
+    for (const i of idx) if (!Number.isFinite(amostras[i].t)) grupo[i] = ++prox;
+  }
+  return grupo;
+}
+
+/**
+ * Divide as amostras em k partes para a validação cruzada, estratificado por classe e mantendo
+ * cada grupo (rajada) inteiro numa parte só. Assim o teste nunca usa uma foto "gêmea" de outra do treino.
+ * Classes com uma única rajada não têm como ser separadas: nelas a divisão é foto a foto (e o app avisa).
+ */
+export function dividirEmPartes(amostras, K, grupo, semente = 123) {
+  const rnd = rng(semente);
+  const gruposDaClasse = Array.from({ length: K }, () => new Map());
+  amostras.forEach((a, i) => {
+    const m = gruposDaClasse[a.k];
+    if (!m.has(grupo[i])) m.set(grupo[i], []);
+    m.get(grupo[i]).push(i);
+  });
+  const rajadasPorClasse = gruposDaClasse.map((m) => m.size);
+  const separaveis = rajadasPorClasse.filter((n) => n >= 2);
+  const fotosPorClasse = gruposDaClasse.map((m) => [...m.values()].reduce((s, l) => s + l.length, 0));
+  const kf = Math.max(2, Math.min(5, ...fotosPorClasse, ...(separaveis.length ? separaveis : [5])));
+  const umaRajada = [];
+  const dobra = new Int32Array(amostras.length);
+  gruposDaClasse.forEach((m, k) => {
+    let lista = [...m.values()];
+    if (lista.length < 2) { umaRajada.push(k); lista = lista.flat().map((i) => [i]); }
+    embaralhar(lista, rnd);
+    lista.sort((x, y) => y.length - x.length); // maiores primeiro; empates ficam na ordem sorteada
+    const carga = new Array(kf).fill(0);
+    for (const g of lista) {
+      let f = 0;
+      for (let j = 1; j < kf; j++) if (carga[j] < carga[f]) f = j;
+      for (const i of g) dobra[i] = f;
+      carga[f] += g.length;
+    }
+  });
+  return { dobra, kf, rajadasPorClasse, umaRajada };
+}
+
 /**
  * Treina com validação cruzada estratificada (k partes) e depois treina o modelo final com tudo.
- * amostras: [{ fotoId, k (índice da classe), vet: Float32Array(V*C) }]
+ * amostras: [{ fotoId, k (índice da classe), vet: Float32Array(V*C), t (horário da foto, ms) }]
+ * Fotos da mesma rajada ficam sempre na mesma parte (ver dividirEmPartes).
  * Retorna { W, b, metricas }.
  */
 export async function treinarComValidacao(amostras, K, C, aoProgresso = () => {}) {
   const V = VARIANTES.length;
-  const porClasse = Array.from({ length: K }, () => []);
-  amostras.forEach((a, i) => porClasse[a.k].push(i));
-  const menor = Math.min(...porClasse.map((l) => l.length));
-  const kf = Math.max(2, Math.min(5, menor));
-  const rnd = rng(123);
-  const dobra = new Int32Array(amostras.length);
-  for (const lista of porClasse) {
-    embaralhar(lista, rnd).forEach((i, j) => { dobra[i] = j % kf; });
-  }
+  const grupo = agruparRajadas(amostras);
+  const { dobra, kf, rajadasPorClasse, umaRajada } = dividirEmPartes(amostras, K, grupo);
 
   const montar = (indices, todasVariantes) => {
     const nv = todasVariantes ? V : 1;
@@ -331,6 +386,10 @@ export async function treinarComValidacao(amostras, K, C, aoProgresso = () => {}
     metricas: {
       kf,
       total: amostras.length,
+      validacao: 'rajada',
+      intervaloRajadaS: INTERVALO_RAJADA_S,
+      rajadasPorClasse,
+      classesUmaRajada: umaRajada,
       acerto: acertos / amostras.length,
       matriz,
       erros,

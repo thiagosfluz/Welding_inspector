@@ -1,7 +1,7 @@
 // Autoteste do pipeline de IA (sem câmera): imagens sintéticas -> vetores -> treino -> previsão
 // -> norma -> exportar/importar. Abra tests/selftest.html pelo servidor local.
 import * as store from '../js/store.js';
-import { Motor, treinarComValidacao, VARIANTES } from '../js/model.js';
+import { Motor, treinarComValidacao, VARIANTES, agruparRajadas, dividirEmPartes } from '../js/model.js';
 import { Norma, decidir } from '../js/norma.js';
 import { canvasParaBlob, blobParaCanvas } from '../js/imaging.js';
 import { exportar, lerArquivo, importar } from '../js/transfer.js';
@@ -115,6 +115,9 @@ async function main() {
     ok(decidir([0.9, 0.05, 0.05], cl, norma, 0.7).tipo === 'boa', 'Decisão: 90% boa → BOA');
     ok(decidir([0.5, 0.3, 0.2], cl, norma, 0.7).tipo === 'incerto', 'Decisão: 50% boa / 50% defeito → INCERTO');
 
+    // ---- validação por rajada ----
+    testarRajadas();
+
     // ---- medição de poros (aba Medir) ----
     testarMedicaoPoros(norma, p);
 
@@ -148,6 +151,29 @@ async function main() {
     for (const n of nomesBanco) indexedDB.deleteDatabase(n);
     window.resultadoTeste = { ok: itens.every((i) => i.tipo !== 'falha'), itens };
   }
+}
+
+function testarRajadas() {
+  // classe 0: 3 rajadas (0–0,9 s; 60 s; 200 s); classe 1: 4 rajadas; classe 2: uma rajada só
+  const t = (s) => 1e12 + s * 1000;
+  const amostras = [
+    ...[0, 0.3, 0.6, 0.9, 60, 60.4, 200, 200.3].map((s) => ({ k: 0, t: t(s) })),
+    ...[0, 10, 10.2, 30, 30.1, 30.2, 90].map((s) => ({ k: 1, t: t(s) })),
+    ...[0, 0.4, 0.8, 1.2, 1.6, 2.0].map((s) => ({ k: 2, t: t(s) })),
+  ];
+  const g = agruparRajadas(amostras);
+  const nGrupos = (k) => new Set(amostras.map((a, i) => (a.k === k ? g[i] : null)).filter((x) => x !== null)).size;
+  ok(nGrupos(0) === 3 && nGrupos(1) === 4 && nGrupos(2) === 1, `Rajadas detectadas pelo intervalo de 5 s: ${nGrupos(0)}, ${nGrupos(1)}, ${nGrupos(2)} (esperado 3, 4, 1)`);
+  const { dobra, kf, umaRajada } = dividirEmPartes(amostras, 3, g);
+  const inteiras = [...new Set(g)].every((gid) => {
+    const idx = amostras.map((a, i) => i).filter((i) => g[i] === gid && amostras[i].k !== 2);
+    return new Set(idx.map((i) => dobra[i])).size <= 1;
+  });
+  ok(kf === 3, `Número de partes limitado pela classe com menos rajadas: ${kf} (esperado 3)`);
+  ok(inteiras, 'Cada rajada fica inteira numa única parte (sem foto “gêmea” no treino e no teste)');
+  ok(umaRajada.length === 1 && umaRajada[0] === 2, 'Classe com uma única rajada é sinalizada');
+  const semHora = dividirEmPartes(amostras.map((a) => ({ k: a.k })), 3, agruparRajadas(amostras.map((a) => ({ k: a.k }))));
+  ok(semHora.umaRajada.length === 0 && semHora.kf === 5, 'Sem horário nas fotos: divisão foto a foto, como antes');
 }
 
 function testarMedicaoPoros(norma, p) {

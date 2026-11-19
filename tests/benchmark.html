@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comparação de variantes</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; background: #0f1419; color: #e8edf2; padding: 16px; max-width: 1000px; margin: auto; }
+    #estado { font-size: 1.2rem; font-weight: 700; }
+    li { margin: 4px 0; }
+  </style>
+  <script src="../vendor/tf.min.js" defer></script>
+  <script type="module" src="benchmark.js"></script>
+</head>
+<body>
+  <h1>Comparação de variantes do motor de IA</h1>
+  <p>Treina e valida cada variante com as fotos de um arquivo exportado pelo app (<code>?arquivo=nome.json</code>, na pasta do projeto).
+    Fotos da mesma rajada ou sessão ficam sempre do mesmo lado (treino ou teste). Nada é gravado.</p>
+  <div id="estado">Iniciando…</div>
+  <ul id="log"></ul>
+</body>
+</html>

@@ -5,3 +5,6 @@ tools/pretrain/dados/
 tools/pretrain/saida/
 .venv/
 .DS_Store
+
+# Exportações de treino (fotos do usuário) — nunca enviar ao GitHub
+inspetor-solda-*.json
